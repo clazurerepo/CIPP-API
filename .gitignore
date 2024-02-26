@@ -4,4 +4,7 @@ tenants.cache.json
 chocoapps.cache
 *.log
 .vscode/
-Cache_BestPracticeAnalyser/
+Cache_*
+Logs
+ExcludedTenants
+SendNotifications/config.json

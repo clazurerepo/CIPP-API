@@ -1,20 +1,21 @@
 param($Context)
 
-Log-request  -API "BestPracticeAnalyser" -tenant $tenant -message "Best Practice Analyser has Started" -sev Info
-New-Item "Cache_BestPracticeAnalyser" -ItemType Directory -ErrorAction SilentlyContinue
+$DurableRetryOptions = @{
+    FirstRetryInterval  = (New-TimeSpan -Seconds 5)
+    MaxNumberOfAttempts = 3
+    BackoffCoefficient  = 2
+}
+$RetryOptions = New-DurableRetryOptions @DurableRetryOptions
+Write-LogMessage -API 'BestPracticeAnalyser' -tenant $tenant -message 'Started BestPracticeAnalyser' -sev info
 
-$Batch = (Invoke-ActivityFunction -FunctionName 'BestPracticeAnalyser_GetQueue' -Input 'LetsGo')
+if ($Context.Input -and ![string]::IsNullOrEmpty([string]$Context.Input.TenantFilter)) {
+    $Batch = @([string]$Context.Input.TenantFilter)
+} else {
+    $Batch = (Invoke-ActivityFunction -FunctionName 'BestPracticeAnalyser_GetQueue' -Input 'LetsGo')
+}
+
 $ParallelTasks = foreach ($Item in $Batch) {
-  Invoke-DurableActivity -FunctionName "BestPracticeAnalyser_All" -Input $item -NoWait
+    Invoke-DurableActivity -FunctionName 'BestPracticeAnalyser_All' -Input $item -NoWait -RetryOptions $RetryOptions
 }
 
-$Outputs = Wait-ActivityFunction -Task $ParallelTasks
-
-  foreach ($item in $Outputs) {
-  write-host $Item | Out-String
-  $Object = $Item | ConvertTo-Json
-
-  Set-Content "Cache_BestPracticeAnalyser\$($item.tenant).BestPracticeAnalysis.json" -Value $Object -Force
-}
-
-Log-request  -API "BestPracticeAnalyser" -tenant $tenant -message "Best Practice Analyser has Finished" -sev Info
+Write-LogMessage -API 'BestPracticeAnalyser' -tenant $tenant -message 'Best Practice Analyser has Finished' -sev Info
