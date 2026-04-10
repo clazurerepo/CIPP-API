@@ -1,16 +1,12 @@
-using namespace System.Net
-
 Function Invoke-ListNotificationConfig {
     <#
     .FUNCTIONALITY
-    Entrypoint
+        Entrypoint
+    .ROLE
+        CIPP.AppSettings.Read
     #>
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
-
-    $APIName = $TriggerMetadata.FunctionName
-    Write-LogMessage -user $request.headers.'x-ms-client-principal' -API $APINAME -message 'Accessed this API' -Sev 'Debug'
-
     $Table = Get-CIPPTable -TableName SchedulerConfig
     $Filter = "RowKey eq 'CippNotifications' and PartitionKey eq 'CippNotifications'"
     $Config = Get-CIPPAzDataTableEntity @Table -Filter $Filter
@@ -20,7 +16,7 @@ Function Invoke-ListNotificationConfig {
         $Config = @{}
     }
     #$config | Add-Member -NotePropertyValue @() -NotePropertyName 'logsToInclude' -Force
-    $config.logsToInclude = @(([pscustomobject]$config | Select-Object * -ExcludeProperty schedule, type, tenantid, onepertenant, sendtoIntegration, partitionkey, rowkey, tenant, ETag, email, logsToInclude, Severity, Alert, Info, Error, timestamp, webhook, includeTenantId).psobject.properties.name)
+    $config.logsToInclude = @(([pscustomobject]$config | Select-Object * -ExcludeProperty schedule, type, tenantid, onepertenant, sendtoIntegration, partitionkey, rowkey, tenant, ETag, email, logsToInclude, Severity, Alert, Info, Error, timestamp, webhook, includeTenantId, UseStandardizedSchema, webhookAuthType, webhookAuthToken, webhookAuthUsername, webhookAuthPassword, webhookAuthHeaderName, webhookAuthHeaderValue, webhookAuthHeaders).psobject.properties.name)
     if (!$config.logsToInclude) {
         $config.logsToInclude = @('None')
     }
@@ -31,10 +27,9 @@ Function Invoke-ListNotificationConfig {
     }
     $body = [PSCustomObject]$Config
 
-    # Associate values to output bindings by calling 'Push-OutputBinding'.
-    Push-OutputBinding -Name Response -Value ([HttpResponseContext]@{
+    return [HttpResponseContext]@{
             StatusCode = [HttpStatusCode]::OK
             Body       = $body
-        })
+        }
 
 }
